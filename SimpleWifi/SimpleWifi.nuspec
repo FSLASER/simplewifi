@@ -1,13 +1,12 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>$id$</id>
+    <id>FullSpectrumLaser.SimpleWifi</id>
     <version>$version$</version>
-    <title>$title$</title>
-    <authors>$author$</authors>
-    <owners>$author$</owners>
+    <title>SimpleWifi</title>
+    <authors>DigiExam AB</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>$description$</description>
+    <description>.NET 4 library to manage wifi connections</description>
     <releaseNotes>Initial release</releaseNotes>
     <copyright>Copyright 2015</copyright>
     <tags>wifi networking</tags>
