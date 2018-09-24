@@ -11,4 +11,7 @@
     <copyright>Copyright 2015</copyright>
     <tags>wifi networking</tags>
   </metadata>
+  <files>
+    <file src="bin\Release\SimpleWifi.dll" target="lib\net45" />
+  </files>
 </package>
