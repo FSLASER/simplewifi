@@ -64,8 +64,8 @@ namespace SimpleWifi
                 toxml = toxml.Replace("&", "&#038;");
                 toxml = toxml.Replace("<", "&#060;");
                 toxml = toxml.Replace(">", "&#062;");
-                toxml = toxml.Replace("'", "&apos;");
-                toxml = toxml.Replace("\"", "&quot;");
+                toxml = toxml.Replace("'", "&#039;");
+                toxml = toxml.Replace("\"", "&#034;");
             }
 
             return toxml;
