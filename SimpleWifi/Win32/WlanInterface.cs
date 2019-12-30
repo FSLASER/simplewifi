@@ -1,10 +1,8 @@
 ﻿using SimpleWifi.Win32.Interop;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 
 namespace SimpleWifi.Win32
@@ -14,8 +12,8 @@ namespace SimpleWifi.Win32
 	/// </summary>
 	public class WlanInterface
 	{
-		private WlanClient client;
-		private WlanInterfaceInfo info;
+		private readonly WlanClient client;
+		private readonly WlanInterfaceInfo info;
 
 		#region Events
 		/// <summary>
@@ -96,7 +94,8 @@ namespace SimpleWifi.Win32
 				// each time cause otherwise it caches the IP information.
 				foreach (NetworkInterface netIface in NetworkInterface.GetAllNetworkInterfaces())
 				{
-					Guid netIfaceGuid = new Guid(netIface.Id);
+					var netIfaceGuid = new Guid(netIface.Id);
+
 					if (netIfaceGuid.Equals(info.interfaceGuid))
 					{
 						return netIface;
@@ -244,9 +243,10 @@ namespace SimpleWifi.Win32
 		/// <returns>An array of available network entries.</returns>
 		private WlanAvailableNetwork[] ConvertAvailableNetworkListPtr(IntPtr availNetListPtr)
 		{
-			WlanAvailableNetworkListHeader availNetListHeader = (WlanAvailableNetworkListHeader)Marshal.PtrToStructure(availNetListPtr, typeof(WlanAvailableNetworkListHeader));
-			long availNetListIt = availNetListPtr.ToInt64() + Marshal.SizeOf(typeof(WlanAvailableNetworkListHeader));			
-			WlanAvailableNetwork[] availNets = new WlanAvailableNetwork[availNetListHeader.numberOfItems];			
+			var availNetListHeader = (WlanAvailableNetworkListHeader)Marshal.PtrToStructure(availNetListPtr, typeof(WlanAvailableNetworkListHeader));
+			long availNetListIt = availNetListPtr.ToInt64() + Marshal.SizeOf(typeof(WlanAvailableNetworkListHeader));
+            var availNets = new WlanAvailableNetwork[availNetListHeader.numberOfItems];
+
 			for (int i = 0; i < availNetListHeader.numberOfItems; ++i)
 			{
 				availNets[i] = (WlanAvailableNetwork)Marshal.PtrToStructure(new IntPtr(availNetListIt), typeof(WlanAvailableNetwork));
@@ -365,12 +365,14 @@ namespace SimpleWifi.Win32
 		/// </remarks>
 		public void Connect(WlanConnectionMode connectionMode, Dot11BssType bssType, string profile)
 		{
-			WlanConnectionParameters connectionParams = new WlanConnectionParameters();
-			connectionParams.wlanConnectionMode = connectionMode;
-			connectionParams.profile = profile;
-			connectionParams.dot11BssType = bssType;
-			connectionParams.flags = 0;
-			Connect(connectionParams);
+            var connectionParams = new WlanConnectionParameters
+            {
+                wlanConnectionMode = connectionMode,
+                profile = profile,
+                dot11BssType = bssType,
+                flags = 0
+            };
+            Connect(connectionParams);
 		}
 
 		/// <summary>
@@ -431,10 +433,12 @@ namespace SimpleWifi.Win32
 		/// </remarks>
 		public void Connect(WlanConnectionMode connectionMode, Dot11BssType bssType, Dot11Ssid ssid, WlanConnectionFlags flags)
 		{
-			WlanConnectionParameters connectionParams = new WlanConnectionParameters();
-			connectionParams.wlanConnectionMode = connectionMode;
-			connectionParams.dot11SsidPtr = Marshal.AllocHGlobal(Marshal.SizeOf(ssid));
-			Marshal.StructureToPtr(ssid, connectionParams.dot11SsidPtr, false);
+            var connectionParams = new WlanConnectionParameters
+            {
+                wlanConnectionMode = connectionMode,
+                dot11SsidPtr = Marshal.AllocHGlobal(Marshal.SizeOf(ssid))
+            };
+            Marshal.StructureToPtr(ssid, connectionParams.dot11SsidPtr, false);
 			connectionParams.dot11BssType = bssType;
 			connectionParams.flags = flags;
 			
@@ -511,13 +515,13 @@ namespace SimpleWifi.Win32
 
 			try
 			{
-				WlanProfileInfoListHeader header = (WlanProfileInfoListHeader)Marshal.PtrToStructure(profileListPtr, typeof(WlanProfileInfoListHeader));
-				WlanProfileInfo[] profileInfos = new WlanProfileInfo[header.numberOfItems];
+				var header = (WlanProfileInfoListHeader)Marshal.PtrToStructure(profileListPtr, typeof(WlanProfileInfoListHeader));
+				var profileInfos = new WlanProfileInfo[header.numberOfItems];
 				long profileListIterator = profileListPtr.ToInt64() + Marshal.SizeOf(header);
 
 				for (int i = 0; i < header.numberOfItems; ++i)
 				{
-					WlanProfileInfo profileInfo = (WlanProfileInfo)Marshal.PtrToStructure(new IntPtr(profileListIterator), typeof(WlanProfileInfo));
+					var profileInfo = (WlanProfileInfo)Marshal.PtrToStructure(new IntPtr(profileListIterator), typeof(WlanProfileInfo));
 					profileInfos[i] = profileInfo;
 					profileListIterator += Marshal.SizeOf(profileInfo);
 				}
@@ -532,37 +536,38 @@ namespace SimpleWifi.Win32
 
 		internal void OnWlanConnection(WlanNotificationData notifyData, WlanConnectionNotificationData connNotifyData)
 		{
-			if (WlanConnectionNotification != null)
-				WlanConnectionNotification(notifyData, connNotifyData);
+            WlanConnectionNotification?.Invoke(notifyData, connNotifyData);
 
-			if (queueEvents)
+            if (queueEvents)
 			{
-				WlanConnectionNotificationEventData queuedEvent = new WlanConnectionNotificationEventData();
-				queuedEvent.notifyData = notifyData;
-				queuedEvent.connNotifyData = connNotifyData;
-				EnqueueEvent(queuedEvent);
+                var queuedEvent = new WlanConnectionNotificationEventData
+                {
+                    notifyData = notifyData,
+                    connNotifyData = connNotifyData
+                };
+                EnqueueEvent(queuedEvent);
 			}
 		}
 
 		internal void OnWlanReason(WlanNotificationData notifyData, WlanReasonCode reasonCode)
 		{
-			if (WlanReasonNotification != null)
-				WlanReasonNotification(notifyData, reasonCode);
+            WlanReasonNotification?.Invoke(notifyData, reasonCode);
 
-			if (queueEvents)
+            if (queueEvents)
 			{
-				WlanReasonNotificationData queuedEvent = new WlanReasonNotificationData();
-				queuedEvent.notifyData = notifyData;
-				queuedEvent.reasonCode = reasonCode;
-				EnqueueEvent(queuedEvent);
+                var queuedEvent = new WlanReasonNotificationData
+                {
+                    notifyData = notifyData,
+                    reasonCode = reasonCode
+                };
+                EnqueueEvent(queuedEvent);
 			}
 		}
 
 		internal void OnWlanNotification(WlanNotificationData notifyData)
 		{
-			if (WlanNotification != null)
-				WlanNotification(notifyData);
-		}
+            WlanNotification?.Invoke(notifyData);
+        }
 
 		/// <summary>
 		/// Enqueues a notification event to be processed serially.

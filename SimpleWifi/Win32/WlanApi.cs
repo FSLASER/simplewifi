@@ -1,10 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Net.NetworkInformation;
-using System.Threading;
-using System.Text;
 using SimpleWifi.Win32.Interop;
 using SimpleWifi.Win32.Helpers;
 
@@ -23,11 +19,11 @@ namespace SimpleWifi.Win32
 		internal uint negotiatedVersion;
 		internal WlanInterop.WlanNotificationCallbackDelegate wlanNotificationCallback;
 
-		private Dictionary<Guid,WlanInterface> ifaces = new Dictionary<Guid,WlanInterface>();
+		private readonly Dictionary<Guid,WlanInterface> ifaces = new Dictionary<Guid,WlanInterface>();
 
 		private const int NO_WIFI = 1062;
 
-		public bool NoWifiAvailable = false;
+		public bool NoWifiAvailable;
 
 		/// <summary>
 		/// Creates a new instance of a Native Wifi service client.
@@ -35,7 +31,7 @@ namespace SimpleWifi.Win32
 		/// </summary>
 		public WlanClient()
 		{
-			int errorCode = 0;
+			int errorCode;
 			OperatingSystem osInfo = Environment.OSVersion;			
 
 			bool isWinXP = 
@@ -74,7 +70,7 @@ namespace SimpleWifi.Win32
 			try
 			{
 				// Interop callback
-				wlanNotificationCallback = new WlanInterop.WlanNotificationCallbackDelegate(OnWlanNotification);
+				wlanNotificationCallback = OnWlanNotification;
 
 				WlanNotificationSource prevSrc;
 				WlanInterop.ThrowIfError(WlanInterop.WlanRegisterNotification(clientHandle, WlanNotificationSource.All, false, wlanNotificationCallback, IntPtr.Zero, IntPtr.Zero, out prevSrc));
@@ -133,9 +129,8 @@ namespace SimpleWifi.Win32
 								{
 									WlanReasonCode reasonCode = (WlanReasonCode)reasonInt;
 
-									if (wlanIface != null)
-										wlanIface.OnWlanReason(notifyData, reasonCode);
-								}
+                                    wlanIface?.OnWlanReason(notifyData, reasonCode);
+                                }
 							}
 							break;
 					}
@@ -191,24 +186,20 @@ namespace SimpleWifi.Win32
 
 				try
 				{
-					WlanInterfaceInfoListHeader header = (WlanInterfaceInfoListHeader) Marshal.PtrToStructure(ifaceList, typeof (WlanInterfaceInfoListHeader));
+					var header = (WlanInterfaceInfoListHeader) Marshal.PtrToStructure(ifaceList, typeof (WlanInterfaceInfoListHeader));
 					
-					Int64 listIterator = ifaceList.ToInt64() + Marshal.SizeOf(header);
-					WlanInterface[] interfaces = new WlanInterface[header.numberOfItems];
-					List<Guid> currentIfaceGuids = new List<Guid>();
+					long listIterator = ifaceList.ToInt64() + Marshal.SizeOf(header);
+					var interfaces = new WlanInterface[header.numberOfItems];
+					var currentIfaceGuids = new List<Guid>();
 
 					for (int i = 0; i < header.numberOfItems; ++i)
 					{
-						WlanInterfaceInfo info = (WlanInterfaceInfo) Marshal.PtrToStructure(new IntPtr(listIterator), typeof(WlanInterfaceInfo));
+						var info = (WlanInterfaceInfo) Marshal.PtrToStructure(new IntPtr(listIterator), typeof(WlanInterfaceInfo));
 
 						listIterator += Marshal.SizeOf(info);
 						currentIfaceGuids.Add(info.interfaceGuid);
 
-						WlanInterface wlanIface;
-						if (ifaces.ContainsKey(info.interfaceGuid))
-							wlanIface = ifaces[info.interfaceGuid];
-						else
-							wlanIface = new WlanInterface(this, info);
+                        WlanInterface wlanIface = ifaces.ContainsKey(info.interfaceGuid) ? ifaces[info.interfaceGuid] : new WlanInterface(this, info);
 
 						interfaces[i] = wlanIface;
 						ifaces[info.interfaceGuid] = wlanIface;

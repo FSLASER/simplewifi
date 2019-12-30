@@ -1,7 +1,5 @@
-﻿using SimpleWifi.Win32;
-using SimpleWifi.Win32.Interop;
+﻿using SimpleWifi.Win32.Interop;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,9 +14,9 @@ namespace SimpleWifi
         /// </summary>
         internal static string Generate(WlanAvailableNetwork network, string password)
         {
-            string profile = string.Empty;
-            string template = string.Empty;
-            string name = EapUserFactory.EncodeForXML(Encoding.ASCII.GetString(network.dot11Ssid.SSID, 0, (int)network.dot11Ssid.SSIDLength));
+            string profile;
+            string template;
+            string name = EapUserFactory.EncodeForXML(Encoding.UTF8.GetString(network.dot11Ssid.SSID, 0, (int)network.dot11Ssid.SSIDLength));
             string hex = GetHexString(network.dot11Ssid.SSID);
             string encodedPassword = EapUserFactory.EncodeForXML(password);
 
@@ -72,9 +70,9 @@ namespace SimpleWifi
         /// </summary>
         private static string GetTemplate(string name)
         {
-            string resourceName = string.Format("SimpleWifi.ProfileXML.{0}.xml", name);
+            string resourceName = $"SimpleWifi.ProfileXML.{name}.xml";
 
-            using (StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)))
+            using (var reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)))
             {
                 return reader.ReadToEnd();
             }
@@ -85,13 +83,10 @@ namespace SimpleWifi
         /// </summary>
         private static string GetHexString(byte[] ba)
         {
-            StringBuilder sb = new StringBuilder(ba.Length * 2);
+            var sb = new StringBuilder(ba.Length * 2);
 
-            foreach (byte b in ba)
+            foreach (byte b in ba.TakeWhile(b => b != 0))
             {
-                if (b == 0)
-                    break;
-
                 sb.AppendFormat("{0:x2}", b);
             }
 

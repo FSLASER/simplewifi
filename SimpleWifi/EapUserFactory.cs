@@ -17,14 +17,13 @@ namespace SimpleWifi
         {
 #warning Robin: Probably not properly implemented, only supports WPA- and WPA-2 Enterprise with PEAP-MSCHAPv2
 
-            string profile = string.Empty;
-            string template = string.Empty;
+            string profile;
 
             switch (cipher)
             {
                 case Dot11CipherAlgorithm.CCMP: // WPA-2
                 case Dot11CipherAlgorithm.TKIP: // WPA
-                    template = GetTemplate("PEAP-MS-CHAPv2");
+                    string template = GetTemplate("PEAP-MS-CHAPv2");
 
                     profile = string.Format(
                         template,
@@ -44,7 +43,7 @@ namespace SimpleWifi
         /// </summary>
         private static string GetTemplate(string name)
         {
-            string resourceName = string.Format("SimpleWifi.EapUserXML.{0}.xml", name);
+            string resourceName = $"SimpleWifi.EapUserXML.{name}.xml";
 
             using (StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)))
             {
@@ -73,8 +72,8 @@ namespace SimpleWifi
 
         private static string EncodeToBase64(string toEncode)
         {
-            byte[] toEncodeAsBytes = System.Text.ASCIIEncoding.ASCII.GetBytes(toEncode);
-            string returnValue = System.Convert.ToBase64String(toEncodeAsBytes);
+            byte[] toEncodeAsBytes = Encoding.UTF8.GetBytes(toEncode);
+            string returnValue = Convert.ToBase64String(toEncodeAsBytes);
             return returnValue;
         }
     }

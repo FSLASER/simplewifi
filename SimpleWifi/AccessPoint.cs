@@ -1,31 +1,37 @@
-﻿using SimpleWifi.Win32;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using SimpleWifi.Win32.Interop;
-
-namespace SimpleWifi
+﻿namespace SimpleWifi
 {
-	public class AccessPoint
-	{
-		private WlanInterface _interface;
-		private WlanAvailableNetwork _network;
+    using System;
+    using System.ComponentModel;
+    using System.Linq;
+    using System.Text;
+    using System.Threading;
+    using Win32;
+    using Win32.Interop;
 
-		internal AccessPoint(WlanInterface interfac, WlanAvailableNetwork network)
+    public class AccessPoint
+	{
+        /// <summary>
+        /// Returns the underlying network object.
+        /// </summary>
+        internal WlanAvailableNetwork Network { get; }
+
+
+        /// <summary>
+        /// Returns the underlying interface object.
+        /// </summary>
+        internal WlanInterface Interface { get; }
+
+        internal AccessPoint(WlanInterface interfac, WlanAvailableNetwork network)
 		{
-			_interface = interfac;
-			_network = network;
+			Interface = interfac;
+			Network = network;
 		}
 
 		public string Name
 		{
 			get
 			{
-				return Encoding.ASCII.GetString(_network.dot11Ssid.SSID, 0, (int)_network.dot11Ssid.SSIDLength);
+				return Encoding.UTF8.GetString(Network.dot11Ssid.SSID, 0, (int)Network.dot11Ssid.SSIDLength);
 			}
 		}
 
@@ -33,7 +39,7 @@ namespace SimpleWifi
 		{
 			get
 			{
-				return _network.wlanSignalQuality;
+				return Network.wlanSignalQuality;
 			}
 		}
 
@@ -46,7 +52,7 @@ namespace SimpleWifi
 			{
 				try
 				{
-					return _interface.GetProfiles().Where(p => p.profileName == Name).Any();
+					return Interface.GetProfiles().Any(p => p.profileName == Name);
 				}
 				catch 
 				{ 
@@ -59,7 +65,7 @@ namespace SimpleWifi
 		{
 			get
 			{
-				return _network.securityEnabled;
+				return Network.securityEnabled;
 			}
 		}
 
@@ -69,46 +75,22 @@ namespace SimpleWifi
 			{
 				try
 				{
-					var a = _interface.CurrentConnection; // This prop throws exception if not connected, which forces me to this try catch. Refactor plix.
-					return a.profileName == _network.profileName;
+					var a = Interface.CurrentConnection; // This prop throws exception if not connected, which forces me to this try catch. Refactor plix.
+					return a.profileName == Network.profileName;
 				}
 				catch
 				{
 					return false;
 				}
 			}
-
 		}
 
-		/// <summary>
-		/// Returns the underlying network object.
-		/// </summary>
-		internal WlanAvailableNetwork Network
+        /// <summary>
+        /// Checks that the password format matches this access point's encryption method.
+        /// </summary>
+        public bool IsValidPassword(string password)
 		{
-			get
-			{
-				return _network;
-			}
-		}
-
-
-		/// <summary>
-		/// Returns the underlying interface object.
-		/// </summary>
-		internal WlanInterface Interface
-		{
-			get
-			{
-				return _interface;
-			}
-		}
-
-		/// <summary>
-		/// Checks that the password format matches this access point's encryption method.
-		/// </summary>
-		public bool IsValidPassword(string password)
-		{
-			return PasswordHelper.IsValid(password, _network.dot11DefaultCipherAlgorithm);
+			return PasswordHelper.IsValid(password, Network.dot11DefaultCipherAlgorithm);
 		}		
 		
 		/// <summary>
@@ -124,15 +106,14 @@ namespace SimpleWifi
 			if (!HasProfile || overwriteProfile)
 			{				
 				if (HasProfile)
-					_interface.DeleteProfile(Name);
+					Interface.DeleteProfile(Name);
 
 				request.Process();				
 			}
 
-
 			// TODO: Auth algorithm: IEEE80211_Open + Cipher algorithm: None throws an error.
 			// Probably due to connectionmode profile + no profile exist, cant figure out how to solve it though.
-			return _interface.ConnectSynchronously(WlanConnectionMode.Profile, _network.dot11BssType, Name, 6000);			
+			return Interface.ConnectSynchronously(WlanConnectionMode.Profile, Network.dot11BssType, Name, 6000);			
 		}
 
 		/// <summary>
@@ -141,52 +122,51 @@ namespace SimpleWifi
 		public void ConnectAsync(AuthRequest request, bool overwriteProfile = false, Action<bool> onConnectComplete = null)
 		{
 			// TODO: Refactor -> Use async connect in wlaninterface.
-			ThreadPool.QueueUserWorkItem(new WaitCallback((o) => {
-				bool success = false;
+			ThreadPool.QueueUserWorkItem(o => {
+                bool success;
 
-				try
-				{
-					success = Connect(request, overwriteProfile);
-				}
-				catch (Win32Exception)
-				{					
-					success = false;
-				}
+                try
+                {
+                    success = Connect(request, overwriteProfile);
+                }
+                catch (Win32Exception)
+                {					
+                    success = false;
+                }
 
-				if (onConnectComplete != null)
-					onConnectComplete(success);
-			}));
+                onConnectComplete?.Invoke(success);
+            });
 		}
 				
-		public string GetProfileXML()
-		{
-			if (HasProfile)
-				return _interface.GetProfileXml(Name);
-			else
-				return string.Empty;
-		}
+		public string GetProfileXml()
+        {
+            return HasProfile ? Interface.GetProfileXml(Name) : string.Empty;
+        }
 
 		public void DeleteProfile()
 		{
 			try
 			{
 				if (HasProfile)
-					_interface.DeleteProfile(Name);
+					Interface.DeleteProfile(Name);
 			}
-			catch { }
-		}
+            catch
+            {
+                // ignored
+            }
+        }
 
-		public override sealed string ToString()
+		public sealed override string ToString()
 		{
-			StringBuilder info = new StringBuilder();
-			info.AppendLine("Interface: " + _interface.InterfaceName);
-			info.AppendLine("Auth algorithm: " + _network.dot11DefaultAuthAlgorithm);
-			info.AppendLine("Cipher algorithm: " + _network.dot11DefaultCipherAlgorithm);
-			info.AppendLine("BSS type: " + _network.dot11BssType);
-			info.AppendLine("Connectable: " + _network.networkConnectable);
+			var info = new StringBuilder();
+			info.AppendLine("Interface: " + Interface.InterfaceName);
+			info.AppendLine("Auth algorithm: " + Network.dot11DefaultAuthAlgorithm);
+			info.AppendLine("Cipher algorithm: " + Network.dot11DefaultCipherAlgorithm);
+			info.AppendLine("BSS type: " + Network.dot11BssType);
+			info.AppendLine("Connectable: " + Network.networkConnectable);
 			
-			if (!_network.networkConnectable)
-				info.AppendLine("Reason to false: " + _network.wlanNotConnectableReason);
+			if (!Network.networkConnectable)
+				info.AppendLine("Reason to false: " + Network.wlanNotConnectableReason);
 
 			return info.ToString();
 		}
